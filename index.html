@@ -37,7 +37,7 @@
       <h2 class="text-lg font-bold text-slate-700">1. رفع وإدخال ورقة التأمين (PDF / الصورة) والذكاء الاصطناعي</h2>
       
       <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg text-xs text-amber-800">
-        <strong>ملاحظة:</strong> أدخل مفتاح Gemini API ثم اختر ملف الروشتة/التأمين لقراءة النص واستخراج البيانات تلقائياً.
+        <strong>ملاحظة:</strong> النظام يعتمد حالياً على نموذج <strong>Gemini 3.6 Flash</strong> لقراءة مستندات الروشتات والتأمين بذكاء.
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -235,7 +235,6 @@
       }
     }
 
-    // دالة تحويل الملف إلى Base64
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -251,7 +250,6 @@
       });
     }
 
-    // دالة قراءة وتوزيع البيانات ذكياً
     async function processPDFWithAI() {
       const fileInput = document.getElementById('pdfFileInput');
       const apiKey = document.getElementById('apiKeyInput').value.trim();
@@ -267,15 +265,14 @@
       }
 
       const btnText = document.getElementById('btnText');
-      btnText.innerText = "جاري قراءة الملف وتوزيع البيانات...";
+      btnText.innerText = "جاري قراءة المستند وتوزيع البيانات...";
 
       try {
         const file = fileInput.files[0];
         const base64Data = await fileToBase64(file);
         const mimeType = file.type || "application/pdf";
 
-        const prompt = `أنت خبير في التعرف على الصور والمستندات الطبية واستخراج البيانات من ورشتات وأوراق التأمين الصحي.
-اقرأ الورقة المرفقة بوضوح واستخرج البيانات ضعها في قالب JSON الموضح أدناه دون أي كلام إضافي:
+        const prompt = `أنت خبير في التعرف على المستندات والروشتات الطبية. اقرأ المستند أو الصورة واستخرج الحقول التالية وضعها داخل كائن JSON فقط وبدون أي مقدمات:
 {
   "patientName": "اسم المريض",
   "ticketNo": "رقم المطالبة أو التذكرة",
@@ -283,11 +280,12 @@
   "nationalId": "الرقم القومي إن وجد",
   "patientPhone": "رقم الهاتف إن وجد",
   "approvalNo": "رقم الموافقة إن وجد",
-  "medicines": "قائمة الأدوية والأسعار",
+  "medicines": "الأدوية والكميات",
   "totalAmount": 0.0
 }`;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        // استخدام نموذج gemini-3.6-flash المطلوب في الـ API
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -308,12 +306,12 @@
         const data = await response.json();
 
         if (data.error) {
-          alert("خطأ من الـ API: " + (data.error.message || "المفتاح غير صحيح أو الخدمة غير متاحة."));
+          alert("خطأ من السيرفر: " + (data.error.message || "تأكد من صحة المفتاح."));
           return;
         }
 
         if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-          alert("لم يستطع الذكاء الاصطناعي قراءة المستند، تأكد من وضوح الصورة أو الملف.");
+          alert("تعذر تحليل بيانات الملف. يرجى التأكد من وضوح المستند.");
           return;
         }
 
@@ -332,11 +330,11 @@
         document.getElementById('totalAmount').value = parsedData.totalAmount || 0;
 
         calculateInvoice();
-        alert("تم استخراج البيانات بنجاح!");
+        alert("تم استخراج البيانات وتوزيعها بنجاح!");
 
       } catch (err) {
         console.error("تفاصيل الخطأ:", err);
-        alert("حدث خطأ أثناء معالجة الملف: " + err.message);
+        alert("حدث خطأ أثناء الاتصال: " + err.message);
       } finally {
         btnText.innerText = "قراءة وتوزيع البيانات ذكياً";
       }

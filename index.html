@@ -37,7 +37,7 @@
       <h2 class="text-lg font-bold text-slate-700">1. رفع وإدخال ورقة التأمين (PDF / الصورة) والذكاء الاصطناعي</h2>
       
       <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg text-xs text-amber-800">
-        <strong>ملاحظة:</strong> النظام يعتمد على رؤية الذكاء الاصطناعي (OCR) لقراءة الأوراق المطبوعة والمصورة بدقة.
+        <strong>ملاحظة:</strong> أدخل مفتاح Gemini API ثم اختر ملف الروشتة/التأمين لقراءة النص واستخراج البيانات تلقائياً.
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -235,7 +235,7 @@
       }
     }
 
-    // تحويل الملف إلى Base64
+    // دالة تحويل الملف إلى Base64
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -251,11 +251,12 @@
       });
     }
 
+    // دالة قراءة وتوزيع البيانات ذكياً
     async function processPDFWithAI() {
       const fileInput = document.getElementById('pdfFileInput');
       const apiKey = document.getElementById('apiKeyInput').value.trim();
 
-      if (!fileInput.files.length) {
+      if (!fileInput.files || !fileInput.files[0]) {
         alert("يرجى اختيار ملف PDF أو صورة أولاً.");
         return;
       }
@@ -266,27 +267,26 @@
       }
 
       const btnText = document.getElementById('btnText');
-      btnText.innerText = "جاري قراءة الصورة وتوزيع البيانات بالذكاء الاصطناعي...";
+      btnText.innerText = "جاري قراءة الملف وتوزيع البيانات...";
 
       try {
         const file = fileInput.files[0];
         const base64Data = await fileToBase64(file);
         const mimeType = file.type || "application/pdf";
 
-        const prompt = `أنت خبير في التعرف على الصور والمستندات الطبية واستخراج البيانات من ورشتات وأوراق التأمين الصحي (MetLife, MedRight, AXA).
-اقرأ الورقة المرفقة بوضوح واستخرج البيانات وضعها في قالب JSON الموضح أدناه دون إدخال أي نص خارجي أو أقواس إضافية:
+        const prompt = `أنت خبير في التعرف على الصور والمستندات الطبية واستخراج البيانات من ورشتات وأوراق التأمين الصحي.
+اقرأ الورقة المرفقة بوضوح واستخرج البيانات ضعها في قالب JSON الموضح أدناه دون أي كلام إضافي:
 {
-  "patientName": "اسم المريض الكامل",
+  "patientName": "اسم المريض",
   "ticketNo": "رقم المطالبة أو التذكرة",
-  "cardNo": "رقم الكارنيه أو بطاقة التأمين",
+  "cardNo": "رقم الكارنيه",
   "nationalId": "الرقم القومي إن وجد",
   "patientPhone": "رقم الهاتف إن وجد",
   "approvalNo": "رقم الموافقة إن وجد",
-  "medicines": "قائمة الأدوية والأسعار إن وجدت",
+  "medicines": "قائمة الأدوية والأسعار",
   "totalAmount": 0.0
 }`;
 
-        // إرسال المستند كاملاً بصيغة Vision إلى Gemini
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -308,7 +308,12 @@
         const data = await response.json();
 
         if (data.error) {
-          alert("خطأ في API: " + (data.error.message || "المفتاح غير صحيح أو غير مفعل."));
+          alert("خطأ من الـ API: " + (data.error.message || "المفتاح غير صحيح أو الخدمة غير متاحة."));
+          return;
+        }
+
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+          alert("لم يستطع الذكاء الاصطناعي قراءة المستند، تأكد من وضوح الصورة أو الملف.");
           return;
         }
 
@@ -317,22 +322,21 @@
 
         const parsedData = JSON.parse(rawText);
 
-        // ملء البيانات في خاناتها المخصصة
-        if (parsedData.patientName) document.getElementById('patientName').value = parsedData.patientName;
-        if (parsedData.ticketNo) document.getElementById('ticketNo').value = parsedData.ticketNo;
-        if (parsedData.cardNo) document.getElementById('cardNo').value = parsedData.cardNo;
-        if (parsedData.nationalId) document.getElementById('nationalId').value = parsedData.nationalId;
-        if (parsedData.patientPhone) document.getElementById('patientPhone').value = parsedData.patientPhone;
-        if (parsedData.approvalNo) document.getElementById('approvalNo').value = parsedData.approvalNo;
-        if (parsedData.medicines) document.getElementById('medicinesList').value = parsedData.medicines;
-        if (parsedData.totalAmount) document.getElementById('totalAmount').value = parsedData.totalAmount;
+        document.getElementById('patientName').value = parsedData.patientName || '';
+        document.getElementById('ticketNo').value = parsedData.ticketNo || '';
+        document.getElementById('cardNo').value = parsedData.cardNo || '';
+        document.getElementById('nationalId').value = parsedData.nationalId || '';
+        document.getElementById('patientPhone').value = parsedData.patientPhone || '';
+        document.getElementById('approvalNo').value = parsedData.approvalNo || '';
+        document.getElementById('medicinesList').value = parsedData.medicines || '';
+        document.getElementById('totalAmount').value = parsedData.totalAmount || 0;
 
         calculateInvoice();
-        alert("تم استخراج البيانات وتوزيعها في الخانات بنجاح!");
+        alert("تم استخراج البيانات بنجاح!");
 
       } catch (err) {
-        console.error(err);
-        alert("تعذر قراءة المستند. تأكد أن المفتاح يعمل وأن الصورة أو الـ PDF واضحة.");
+        console.error("تفاصيل الخطأ:", err);
+        alert("حدث خطأ أثناء معالجة الملف: " + err.message);
       } finally {
         btnText.innerText = "قراءة وتوزيع البيانات ذكياً";
       }

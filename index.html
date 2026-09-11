@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>نظام إدارة فواتير التأمين الطبي - الصيدلية</title>
-  <!-- TailWind CSS للمظهر -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- مكتبة PDF.js لقراءة ملفات الـ PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     @media print {
@@ -35,25 +33,37 @@
       </div>
     </header>
 
-    <!-- إدخال ملف الـ PDF واختيار الشركة -->
-    <section class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print">
-      <h2 class="text-lg font-bold mb-4 text-slate-700">1. رفع وإدخال ورقة التأمين (PDF)</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <!-- إدخال مفتاح الـ API ومستند الـ PDF -->
+    <section class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print space-y-4">
+      <h2 class="text-lg font-bold text-slate-700">1. رفع وإدخال ورقة التأمين (PDF) والذكاء الاصطناعي</h2>
+      
+      <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg text-xs text-amber-800">
+        <strong>ملاحظة:</strong> لقراءة البيانات وتوزيعها بدقة في خاناتها الصحيحة، أدخل مفتاح <strong>Gemini API Key</strong> الخاص بك من موقع Google AI Studio.
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">مفتاح Gemini API Key</label>
+          <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded-lg p-2 text-xs">
+        </div>
+
         <div>
           <label class="block text-sm font-medium mb-1">شركة التأمين</label>
-          <select id="companySelect" onchange="toggleMedrightFields()" class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500">
+          <select id="companySelect" onchange="toggleMedrightFields()" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500">
             <option value="MetLife">ميتلايف (MetLife)</option>
             <option value="MedRight">ميدرايت (MedRight)</option>
             <option value="AXA">أكسا (AXA)</option>
           </select>
         </div>
+
         <div>
           <label class="block text-sm font-medium mb-1">رفع الملف (PDF)</label>
-          <input type="file" id="pdfFileInput" accept="application/pdf" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          <input type="file" id="pdfFileInput" accept="application/pdf" class="w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
         </div>
+
         <div class="flex items-end">
-          <button onclick="processPDF()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg transition flex items-center justify-center gap-2">
-            <span>استخراج البيانات تلقائياً</span>
+          <button id="extractBtn" onclick="processPDFWithAI()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2">
+            <span id="btnText">قراءة وتوزيع البيانات ذكياً</span>
           </button>
         </div>
       </div>
@@ -61,7 +71,7 @@
 
     <!-- نموذج بيانات المطالبة والروشتة -->
     <section class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print">
-      <h2 class="text-lg font-bold mb-4 text-slate-700">2. بيانات الفاتورة والمريض</h2>
+      <h2 class="text-lg font-bold mb-4 text-slate-700">2. بيانات الفاتورة والمريض (موزعة تلقائياً)</h2>
       <form id="claimForm" onsubmit="event.preventDefault(); calculateInvoice();" class="grid grid-cols-1 md:grid-cols-4 gap-4">
         
         <div>
@@ -110,19 +120,19 @@
           <h3 class="font-bold mb-2">الأدوية والتكاليف</h3>
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg">
             <div class="col-span-2">
-              <label class="block text-sm font-medium mb-1">الأدوية الموصوفة (اسم الدواء - الكمية - السعر)</label>
-              <textarea id="medicinesList" rows="3" class="w-full border border-slate-300 rounded-lg p-2 text-sm" placeholder="مثال: Panadol Extra - 2 - 50 EGP"></textarea>
+              <label class="block text-sm font-medium mb-1">الأدوية الموصوفة</label>
+              <textarea id="medicinesList" rows="3" class="w-full border border-slate-300 rounded-lg p-2 text-sm" placeholder="اسم الدواء - الكمية - السعر"></textarea>
             </div>
             <div>
-              <label class="block text-sm font-medium mb-1">إجمالي الإشتراء / الإجمالي (ج.م)</label>
+              <label class="block text-sm font-medium mb-1">إجمالي المبلغ (ج.م)</label>
               <input type="number" step="0.01" id="totalAmount" oninput="calculateInvoice()" required class="w-full border border-slate-300 rounded-lg p-2">
             </div>
             <div>
-              <label class="block text-sm font-medium mb-1">نسبة تحمل المريض (%)</label>
+              <label class="block text-sm font-medium mb-1">تحمل المريض (%)</label>
               <input type="number" step="0.01" id="patientCopayPercent" value="10" oninput="calculateInvoice()" class="w-full border border-slate-300 rounded-lg p-2">
             </div>
             <div>
-              <label class="block text-sm font-medium mb-1">نسبة خصم الصيدلية/التأمين (%)</label>
+              <label class="block text-sm font-medium mb-1">خصم الصيدلية (%)</label>
               <input type="number" step="0.01" id="pharmacyDiscountPercent" value="15" oninput="calculateInvoice()" class="w-full border border-slate-300 rounded-lg p-2">
             </div>
             <div>
@@ -130,11 +140,11 @@
               <input type="number" id="patientPaid" readonly class="w-full bg-slate-100 border border-slate-300 rounded-lg p-2 font-bold text-slate-700">
             </div>
             <div>
-              <label class="block text-sm font-medium mb-1">مبلغ التأمين (الشركة) (ج.م)</label>
+              <label class="block text-sm font-medium mb-1">مبلغ الشركة (ج.م)</label>
               <input type="number" id="companyPaid" readonly class="w-full bg-slate-100 border border-slate-300 rounded-lg p-2 font-bold text-blue-700">
             </div>
             <div>
-              <label class="block text-sm font-medium mb-1">صافي ربح الصيدلية المتوقع (ج.م)</label>
+              <label class="block text-sm font-medium mb-1">صافي ربح الصيدلية (ج.م)</label>
               <input type="number" id="netProfit" readonly class="w-full bg-emerald-50 border border-emerald-300 rounded-lg p-2 font-bold text-emerald-700">
             </div>
           </div>
@@ -191,7 +201,7 @@
       </div>
     </section>
 
-    <!-- سجل المطالبات والعلاجات الشهرية -->
+    <!-- سجل المطالبات -->
     <section class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print">
       <h2 class="text-lg font-bold mb-4 text-slate-700">3. سجل السجلات المكررة والعلاجات الشهرية القادمة</h2>
       <div class="overflow-x-auto">
@@ -206,9 +216,7 @@
               <th class="p-2">نوع العلاج</th>
             </tr>
           </thead>
-          <tbody id="recordsTableBody">
-            <!-- سيتم إضافة البيانات هنا عبر JS -->
-          </tbody>
+          <tbody id="recordsTableBody"></tbody>
         </table>
       </div>
     </section>
@@ -216,10 +224,7 @@
   </div>
 
   <script>
-    // تهيئة PDF.js
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-    // ضبط تاريخ اليوم تلقائياً
     document.getElementById('claimDate').valueAsDate = new Date();
 
     function toggleMedrightFields() {
@@ -232,31 +237,88 @@
       }
     }
 
-    // قراءة نص الـ PDF استخراج البيانات البسيطة
-    async function processPDF() {
+    async function processPDFWithAI() {
       const fileInput = document.getElementById('pdfFileInput');
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
+
       if (!fileInput.files.length) {
-        alert("يرجى اختيار ملف PDF أولاً");
+        alert("يرجى اختيار ملف PDF أولاً.");
         return;
       }
 
-      const file = fileInput.files[0];
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      
-      let fullText = "";
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map(item => item.str).join(" ");
-        fullText += pageText + " ";
-      }
+      const btnText = document.getElementById('btnText');
+      btnText.innerText = "جاري القراءة والتحليل بالذكاء الاصطناعي...";
 
-      document.getElementById('medicinesList').value = fullText.slice(0, 300) + "... (تم إستخراج النص)";
-      alert("تم قراءة ملف الـ PDF بنجاح! يمكنك الآن مراجعة وتأكيد البيانات.");
+      try {
+        // 1. استخراج النص من PDF
+        const file = fileInput.files[0];
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        let extractedText = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          extractedText += textContent.items.map(item => item.str).join(" ") + " ";
+        }
+
+        // 2. تحليل البيانات بفصلها تلقائياً باستخدام Gemini API
+        if (apiKey) {
+          const prompt = `أنت مساعد متخصص في استخراج البيانات من وثائق التأمين الطبي ورشتات الصيدلية. 
+حلل النص التالي المستخرج من ورقة تأمين واستخرج الحقول المطلوبة بصيغة JSON فقط بهذا الشكل وبدون أي كلام إضافي:
+{
+  "patientName": "اسم المريض",
+  "ticketNo": "رقم التذكرة أو المطالبة",
+  "cardNo": "رقم الكارنيه",
+  "nationalId": "الرقم القومي إن وجد",
+  "patientPhone": "رقم الهاتف إن وجد",
+  "approvalNo": "رقم الموافقة إن وجد",
+  "medicines": "قائمة الأدوية المذكورة",
+  "totalAmount": 0.0
+}
+
+النص هو:
+${extractedText}`;
+
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }]
+            })
+          });
+
+          const data = await response.json();
+          let jsonText = data.candidates[0].content.parts[0].text;
+          jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+          
+          const parsedData = JSON.parse(jsonText);
+
+          // تعبئة الخانات تلقائياً في أماكنها الصحيحة
+          if (parsedData.patientName) document.getElementById('patientName').value = parsedData.patientName;
+          if (parsedData.ticketNo) document.getElementById('ticketNo').value = parsedData.ticketNo;
+          if (parsedData.cardNo) document.getElementById('cardNo').value = parsedData.cardNo;
+          if (parsedData.nationalId) document.getElementById('nationalId').value = parsedData.nationalId;
+          if (parsedData.patientPhone) document.getElementById('patientPhone').value = parsedData.patientPhone;
+          if (parsedData.approvalNo) document.getElementById('approvalNo').value = parsedData.approvalNo;
+          if (parsedData.medicines) document.getElementById('medicinesList').value = parsedData.medicines;
+          if (parsedData.totalAmount) document.getElementById('totalAmount').value = parsedData.totalAmount;
+
+          calculateInvoice();
+          alert("تم استخراج البيانات وتوزيعها في الخانات المخصصة لها بنجاح!");
+        } else {
+          alert("تم استخراج النص، ولكن لتقسيم البيانات تلقائياً في خاناتها يرجى كتابة Gemini API Key في الخانة المخصصة له.");
+          document.getElementById('medicinesList').value = extractedText;
+        }
+
+      } catch (err) {
+        console.error(err);
+        alert("حدث خطأ أثناء قراءة الملف أو تحليله. تأكد من صحة المفتاح والملف.");
+      } finally {
+        btnText.innerText = "قراءة وتوزيع البيانات ذكياً";
+      }
     }
 
-    // حساب الحقول المالية
     function calculateInvoice() {
       const total = parseFloat(document.getElementById('totalAmount').value) || 0;
       const copayPct = parseFloat(document.getElementById('patientCopayPercent').value) || 0;
@@ -264,16 +326,13 @@
 
       const patientPay = total * (copayPct / 100);
       const companyPay = total - patientPay;
-      
-      // صافي الربح التقديري للصيدلية = (نسبة الخصم - الخصومات الممنوحة)
       const discountVal = total * (discountPct / 100);
-      const profit = discountVal; // المعادلة التقريبية للربح حسب العقد
+      const profit = discountVal;
 
       document.getElementById('patientPaid').value = patientPay.toFixed(2);
       document.getElementById('companyPaid').value = companyPay.toFixed(2);
       document.getElementById('netProfit').value = profit.toFixed(2);
 
-      // تحديث الفاتورة المجهزة للطباعة
       document.getElementById('invCompany').innerText = "الشركة: " + document.getElementById('companySelect').value;
       document.getElementById('invDate').innerText = document.getElementById('claimDate').value;
       document.getElementById('invTicket').innerText = document.getElementById('ticketNo').value || "-";
@@ -297,7 +356,6 @@
       document.getElementById('invNetProfit').innerText = profit.toFixed(2);
     }
 
-    // حفظ البيانات وتجهيز التكرار الشهري
     function saveRecord() {
       calculateInvoice();
       const patientName = document.getElementById('patientName').value;
